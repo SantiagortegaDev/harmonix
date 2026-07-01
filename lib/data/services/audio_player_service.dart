@@ -103,6 +103,13 @@ class HarmonixAudioHandler extends BaseAudioHandler
     _listenPlayer();
   }
 
+  /// Constructor fallback para cuando AudioService.init falla.
+  /// Crea el player sin registro en audio_service.
+  HarmonixAudioHandler._fallback() {
+    _player = AudioPlayer();
+    _listenPlayer();
+  }
+
   late final AudioPlayer _player;
 
   /// Cola interna de canciones Harmonix (paralela a queue.sequenceState).

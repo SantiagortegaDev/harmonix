@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:audio_service/audio_service.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:harmonix/core/theme/app_theme.dart';
@@ -33,9 +34,23 @@ class HarmonixBootstrap {
   }
 }
 
-late final HarmonixAudioHandler harmonixAudioHandler;
+/// Handler de audio — nullable para que la app sobreviva si AudioService falla.
+HarmonixAudioHandler? harmonixAudioHandler;
 
 Future<void> main() async {
+  // Capturar errores de Flutter en release para diagnosticar white screen.
+  FlutterError.onError = (details) {
+    HarmonixLogger.instance.error(
+      'FlutterError: ${details.exception}',
+      tag: 'Flutter',
+      error: details.exception.toString(),
+      stack: details.stack,
+    );
+    if (kDebugMode) {
+      FlutterError.dumpErrorToConsole(details);
+    }
+  };
+
   WidgetsFlutterBinding.ensureInitialized();
   await SystemChrome.setPreferredOrientations(
       [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]);
@@ -55,6 +70,13 @@ Future<void> main() async {
     await CacheService.instance.init();
     await DownloadService.instance.init();
     await MusicRepository.instance.init();
+  } catch (e, s) {
+    HarmonixLogger.instance
+        .error('Core init failed', tag: 'App', error: e, stack: s);
+  }
+
+  // AudioService init — separado para que un fallo no impida iniciar la app.
+  try {
     harmonixAudioHandler = await AudioService.init(
       builder: () => HarmonixAudioHandler(),
       config: const AudioServiceConfig(
@@ -65,14 +87,21 @@ Future<void> main() async {
         androidNotificationIcon: 'mipmap/ic_launcher',
       ),
     );
-    await SettingsProvider.instance.init();
-    HarmonixLogger.instance.info('Bootstrap completo', tag: 'App');
+    HarmonixLogger.instance.info('AudioService init OK', tag: 'App');
   } catch (e, s) {
     HarmonixLogger.instance
-        .error('Bootstrap failed', tag: 'App', error: e, stack: s);
-  } finally {
-    HarmonixBootstrap.complete();
+        .error('AudioService init failed', tag: 'App', error: e, stack: s);
   }
+
+  try {
+    await SettingsProvider.instance.init();
+  } catch (e, s) {
+    HarmonixLogger.instance
+        .error('SettingsProvider init failed', tag: 'App', error: e, stack: s);
+  }
+
+  HarmonixLogger.instance.info('Bootstrap completo', tag: 'App');
+  HarmonixBootstrap.complete();
 
   runApp(const HarmonixApp());
 }
@@ -82,11 +111,15 @@ class HarmonixApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Si audioService falló, crear un handler dummy para que PlayerProvider
+    // no crashee por null.
+    final handler = harmonixAudioHandler ?? HarmonixAudioHandler._fallback();
+
     return MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: SettingsProvider.instance),
         ChangeNotifierProvider(
-          create: (_) => PlayerProvider(harmonixAudioHandler),
+          create: (_) => PlayerProvider(handler),
         ),
         ChangeNotifierProvider.value(value: LibraryProvider.instance),
       ],
