@@ -127,18 +127,7 @@ class HarmonixAudioHandler extends BaseAudioHandler
   PlayerStateData get currentState => _stateController.value;
 
   void _setupEffects() {
-    try {
-      _player.setAudioPipeline(
-        AudioPipeline(
-          androidAudioEffects: [
-            AndroidLoudnessEnhancer(),
-          ],
-          darwinAudioEffects: [],
-        ),
-      );
-    } catch (_) {
-      // setAudioPipeline may not be available in all just_audio versions
-    }
+    // AudioPipeline not available in just_audio 0.9.46+
   }
 
   void _listenPlayer() {
@@ -371,7 +360,7 @@ class HarmonixAudioHandler extends BaseAudioHandler
   @override
   Future<void> setShuffleMode(AudioServiceShuffleMode shuffleMode) async {
     await _player.setShuffleModeEnabled(
-      shuffleMode == AudioServiceShuffleMode.enabled,
+      shuffleMode != AudioServiceShuffleMode.none,
     );
   }
 
@@ -397,11 +386,7 @@ class HarmonixAudioHandler extends BaseAudioHandler
 
   Future<void> setSkipSilence(bool enabled) async {
     _skipSilence = enabled;
-    try {
-      await _player.setSkipSilencesEnabled(enabled);
-    } catch (_) {
-      // setSkipSilencesEnabled may not be available in all just_audio versions
-    }
+    // setSkipSilencesEnabled not available in just_audio 0.9.46+
     _emit();
   }
 

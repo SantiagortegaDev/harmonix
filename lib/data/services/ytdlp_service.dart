@@ -72,10 +72,9 @@ class YtDlpService {
         tag: 'YtDlp');
     try {
       final filterArg = _mapFilter(filter);
-      final results = await _yt.search.search(
-        query,
-        filter: filterArg,
-      );
+      final results = filterArg != null
+          ? await _yt.search.search(query, filter: filterArg)
+          : await _yt.search.search(query);
       final songs = <Song>[];
       final artists = <Artist>[];
       final albums = <Album>[];
@@ -287,13 +286,13 @@ class YtDlpService {
     switch (f) {
       case YtDlpSearchFilter.songs:
       case YtDlpSearchFilter.videos:
-        return SearchFilter.video;
+        return TypeFilters.video;
       case YtDlpSearchFilter.albums:
-        return SearchFilter.video;
+        return TypeFilters.video;
       case YtDlpSearchFilter.playlists:
-        return SearchFilter.playlist;
+        return TypeFilters.playlist;
       case YtDlpSearchFilter.artists:
-        return SearchFilter.channel;
+        return TypeFilters.channel;
       case YtDlpSearchFilter.all:
         return null;
     }

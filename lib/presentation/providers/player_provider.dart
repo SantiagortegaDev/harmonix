@@ -119,8 +119,8 @@ class PlayerProvider extends ChangeNotifier {
   Future<void> toggleShuffle() =>
       _handler.setShuffleMode(
         !_state.shuffleMode
-            ? AudioServiceShuffleMode.enabled
-            : AudioServiceShuffleMode.disabled,
+            ? AudioServiceShuffleMode.all
+            : AudioServiceShuffleMode.none,
       );
 
   Future<void> cycleLoop() async {
