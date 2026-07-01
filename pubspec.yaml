@@ -1,0 +1,73 @@
+name: harmonix
+description: Harmonix - Reproductor de música estilo InnerTune con Material Design 3, API de Piped y reproducción en segundo plano.
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+  flutter: ">=3.19.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Material 3 ya viene incluido en Flutter
+
+  # Audio
+  just_audio: ^0.9.37
+  audio_service: ^0.18.13
+  audio_session: ^0.1.18
+  rxdart: ^0.27.7
+
+  # HTTP / API
+  dio: ^5.4.3+1
+  retrofit: ^4.1.0
+  json_annotation: ^4.8.1
+
+  # Estado
+  provider: ^6.1.2
+
+  # Almacenamiento local / caché
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  path_provider: ^2.1.3
+  shared_preferences: ^2.2.3
+  sqflite: ^2.3.3+1
+
+  # Descargas
+  flutter_downloader: ^1.11.7
+  permission_handler: ^11.3.1
+
+  # Letras
+  html: ^0.15.4
+
+  # UI / Animaciones
+  cached_network_image: ^3.3.1
+  shimmer: ^3.0.0
+  palette_generator: ^0.3.3+3
+
+  # Logs / Debug
+  logger: ^2.3.0
+
+  # Utilidades
+  intl: ^0.19.0
+  uuid: ^4.4.0
+  collection: ^1.18.0
+  url_launcher: ^6.2.6
+
+  # Discord Rich Presence (opcional)
+  flutter_discord_rpc: ^1.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  build_runner: ^2.4.9
+  json_serializable: ^6.7.1
+  hive_generator: ^2.0.1
+  retrofit_generator: ^8.1.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/icons/
