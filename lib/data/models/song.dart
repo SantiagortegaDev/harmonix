@@ -40,11 +40,12 @@ class Song extends HiveObject {
   @HiveField(5)
   final String? thumbnailUrl;
 
-  /// URL directa del stream de audio (resuelta vía Piped /streams/{id}).
+  /// URL directa del stream de audio (resuelta vía YtDlpService).
+  /// Es mutable para poder actualizarla cuando se resuelve en background.
   @HiveField(6)
   String? streamUrl;
 
-  /// Lista cruda de streams devuelta por Piped (audio + video).
+  /// Lista cruda de streams (mantenida por compatibilidad con Hive).
   @HiveField(7)
   List<AudioStream>? audioStreams;
 
@@ -116,44 +117,6 @@ class Song extends HiveObject {
         playCount: playCount ?? this.playCount,
         downloadedAt: downloadedAt ?? this.downloadedAt,
       );
-
-  factory Song.fromPipedSearchItem(Map<String, dynamic> json) {
-    return Song(
-      id: json['url']?.toString().split('=').last ?? json['id'] ?? '',
-      title: json['title'] ?? 'Sin título',
-      artist: (json['uploaderName'] ?? 'Artista desconocido')
-          .replaceAll(' - Topic', ''),
-      durationMs: ((json['duration'] ?? 0) as num).toInt() * 1000,
-      thumbnailUrl: json['thumbnail'] ?? '',
-      videoUrl: json['url'],
-    );
-  }
-
-  factory Song.fromPipedStreams(String videoId, Map<String, dynamic> json) {
-    final audioStreams = (json['audioStreams'] as List?)
-            ?.map((e) => AudioStream.fromJson(e as Map<String, dynamic>))
-            .toList() ??
-        [];
-    final best = audioStreams.isEmpty
-        ? null
-        : audioStreams.firstWhere(
-            (s) => s.mimeType.contains('mp4') || s.mimeType.contains('audio'),
-            orElse: () => audioStreams.first,
-          );
-    return Song(
-      id: videoId,
-      title: json['title'] ?? 'Sin título',
-      artist: (json['uploader'] ?? 'Artista desconocido')
-          .toString()
-          .replaceAll(' - Topic', ''),
-      album: json['category'],
-      durationMs: ((json['duration'] ?? 0) as num).toInt() * 1000,
-      thumbnailUrl: json['thumbnailUrl'],
-      streamUrl: best?.url,
-      audioStreams: audioStreams,
-      videoUrl: 'https://youtu.be/$videoId',
-    );
-  }
 }
 
 @HiveType(typeId: 2)

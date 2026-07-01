@@ -36,7 +36,7 @@ class Artist extends HiveObject {
     return '$s';
   }
 
-  factory Artist.fromPipedSearchItem(Map<String, dynamic> json) {
+  factory Artist.fromMap(Map<String, dynamic> json) {
     final url = json['url']?.toString() ?? '';
     final id = url.split('/').last;
     return Artist(

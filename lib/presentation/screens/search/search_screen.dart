@@ -3,7 +3,7 @@ import 'package:harmonix/core/theme/colors.dart';
 import 'package:harmonix/core/utils/logger.dart';
 import 'package:harmonix/data/models/song.dart';
 import 'package:harmonix/data/repositories/music_repository.dart';
-import 'package:harmonix/data/services/piped_api_service.dart';
+import 'package:harmonix/data/services/ytdlp_service.dart';
 import 'package:harmonix/presentation/providers/player_provider.dart';
 import 'package:harmonix/presentation/widgets/loading_skeleton.dart';
 import 'package:harmonix/presentation/widgets/song_tile.dart';
@@ -26,7 +26,7 @@ class _SearchScreenState extends State<SearchScreen>
   late final TabController _tabs;
   bool _loading = false;
   String _query = '';
-  PipedSearchResult _result = PipedSearchResult();
+  YtDlpSearchResult _result = YtDlpSearchResult();
   List<String> _suggestions = [];
 
   @override
@@ -97,7 +97,7 @@ class _SearchScreenState extends State<SearchScreen>
                       onPressed: () {
                         _ctrl.clear();
                         setState(() {
-                          _result = PipedSearchResult();
+                          _result = YtDlpSearchResult();
                           _query = '';
                         });
                       },

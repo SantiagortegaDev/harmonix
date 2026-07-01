@@ -4,17 +4,13 @@ class AppConstants {
 
   static const String appName = 'Harmonix';
 
-  /// Instancia Piped por defecto.
-  static const String defaultPipedInstance = 'https://piped.private.coffee';
+  /// Motor de extracción de audio (yt-dlp vía youtube_explode_dart).
+  /// Sin instancia externa: las URLs directas se resuelven en el dispositivo.
+  static const String audioEngineName = 'yt-dlp (youtube_explode_dart)';
 
-  /// Endpoints Piped API.
-  static const String pathSearch = '/search';
-  static const String pathStreams = '/streams';
-  static const String pathPlaylists = '/playlists';
-  static const String pathChannel = '/channel';
-  static const String pathNext = '/next';
-  static const String pathTrending = '/trending';
-  static const String pathSuggestions = '/suggestions';
+  /// TTL de la caché en memoria de URLs directas resueltas (5 min).
+  /// Las URLs de googlevideo expiran rápido; refrescarlas es barato.
+  static const Duration directUrlTtl = Duration(minutes: 5);
 
   /// Caché de audio.
   static const int defaultCacheLimitMB = 500;

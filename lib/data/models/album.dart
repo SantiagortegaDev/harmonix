@@ -34,7 +34,7 @@ class Album extends HiveObject {
   @HiveField(6)
   List<Song> songs;
 
-  factory Album.fromPipedSearchItem(Map<String, dynamic> json) {
+  factory Album.fromMap(Map<String, dynamic> json) {
     final url = json['url']?.toString() ?? '';
     final id = url.split('=').last;
     return Album(

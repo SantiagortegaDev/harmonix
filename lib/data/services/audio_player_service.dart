@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:harmonix/core/utils/logger.dart';
 import 'package:harmonix/data/models/song.dart';
+import 'package:harmonix/data/repositories/music_repository.dart';
+import 'package:harmonix/data/services/cache_service.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:rxdart/rxdart.dart';
 
@@ -22,6 +26,7 @@ class PlayerStateData {
     this.pitch = 1.0,
     this.skipSilence = false,
     this.volume = 1.0,
+    this.isResolving = false,
   });
 
   final Song? song;
@@ -39,6 +44,9 @@ class PlayerStateData {
   final bool skipSilence;
   final double volume;
 
+  /// True mientras se resuelve la URL directa en background (yt-dlp).
+  final bool isResolving;
+
   PlayerStateData copyWith({
     Song? song,
     bool? isPlaying,
@@ -54,6 +62,7 @@ class PlayerStateData {
     double? pitch,
     bool? skipSilence,
     double? volume,
+    bool? isResolving,
   }) =>
       PlayerStateData(
         song: song ?? this.song,
@@ -70,6 +79,7 @@ class PlayerStateData {
         pitch: pitch ?? this.pitch,
         skipSilence: skipSilence ?? this.skipSilence,
         volume: volume ?? this.volume,
+        isResolving: isResolving ?? this.isResolving,
       );
 }
 
@@ -77,6 +87,14 @@ class PlayerStateData {
 ///
 /// Implementa [AudioHandler] para background playback, notificación multimedia
 /// y soporte Android Auto.
+///
+/// Estrategia de carga ultra-rápida (estilo Spotify):
+///   1. `playQueue` setea la cola y arranca `_loadCurrent()` SIN esperarlo.
+///   2. `_loadCurrent()` resuelve la URL directa vía `YtDlpService` (cacheada
+///      en memoria: hit = 0ms, miss = ~1-2s) y apenas tenga la URL, llama a
+///      `setAudioSource + play()`.
+///   3. Una vez cargada la pista actual, precarga en background la URL de la
+///      SIGUIENTE pista → el skip es cuasi-inmediato.
 class HarmonixAudioHandler extends BaseAudioHandler
     with QueueHandler, SeekHandler {
   HarmonixAudioHandler() {
@@ -93,6 +111,9 @@ class HarmonixAudioHandler extends BaseAudioHandler
   bool _skipSilence = false;
   double _speed = 1.0;
   double _pitch = 1.0;
+
+  /// True mientras se está resolviendo la URL de la pista actual.
+  bool _resolving = false;
 
   AudioPlayer get player => _player;
   List<Song> get harmonixQueue => List.unmodifiable(_queue);
@@ -148,18 +169,22 @@ class HarmonixAudioHandler extends BaseAudioHandler
       pitch: _pitch,
       skipSilence: _skipSilence,
       volume: _player.volume,
+      isResolving: _resolving,
     ));
     _broadcastMediaItem();
   }
 
+  /// Carga la cola y arranca la reproducción inmediatamente (sin bloquear
+  /// para resolver todas las URLs).
   Future<void> playQueue(List<Song> songs, {int initialIndex = 0}) async {
     if (songs.isEmpty) return;
     _queue
       ..clear()
       ..addAll(songs);
     _index = initialIndex.clamp(0, songs.length - 1);
-    await _loadCurrent();
-    await _player.play();
+    // NO esperamos a _loadCurrent para que la UI muestre "cargando" y
+    // arranque el audio en cuanto la URL esté lista (1-2s).
+    unawaited(_loadCurrent());
   }
 
   Future<void> playFrom(Song song) async {
@@ -183,18 +208,57 @@ class HarmonixAudioHandler extends BaseAudioHandler
     _emit();
   }
 
+  /// Carga la pista actual.
+  ///
+  /// Orden de resolución de URL:
+  ///   1. Si está descargada → usar `localPath`.
+  ///   2. Si hay caché en disco → usar el path cacheado.
+  ///   3. Si `song.streamUrl` ya está poblado → usarlo.
+  ///   4. Sino → resolver via `YtDlpService.getDirectAudioUrl(id)`.
   Future<void> _loadCurrent() async {
     final song = currentSong;
     if (song == null) return;
+
+    _resolving = true;
+    _emit();
+
     try {
-      final uri = song.isDownloaded && song.localPath != null
-          ? song.localPath!
-          : song.streamUrl;
+      String? uri;
+
+      // 1) Descarga / caché en disco → path local instantáneo.
+      final cachedPath = CacheService.instance.getCachedPath(song.id);
+      if (cachedPath != null) {
+        uri = cachedPath;
+      } else if (song.isDownloaded && song.localPath != null) {
+        uri = song.localPath;
+      } else if (song.streamUrl != null && song.streamUrl!.isNotEmpty) {
+        // 2) URL ya resuelta (e.g., segundo play).
+        uri = song.streamUrl;
+      } else {
+        // 3) Resolver con yt-dlp (youtube_explode_dart).
+        try {
+          final url = await MusicRepository.instance.resolveDirectUrl(song.id);
+          uri = url;
+          // Mutar la canción en cola para que un segundo play sea 0ms.
+          song.streamUrl = url;
+          // Cachear en disco en background (no bloquea playback).
+          unawaited(
+            CacheService.instance.cacheStream(song, url).catchError((_) => ''),
+          );
+        } catch (e, s) {
+          HarmonixLogger.instance.error('resolve ${song.id} failed',
+              tag: 'Audio', error: e, stack: s);
+        }
+      }
+
       if (uri == null) {
-        HarmonixLogger.instance.warning('streamUrl null para ${song.id}',
+        HarmonixLogger.instance.warning('No se pudo resolver URL para ${song.id}',
             tag: 'Audio');
+        _resolving = false;
+        _emit();
         return;
       }
+
       await _player.setAudioSource(
         AudioSource.uri(
           Uri.parse(uri),
@@ -212,10 +276,40 @@ class HarmonixAudioHandler extends BaseAudioHandler
           ),
         ),
       );
+
+      _resolving = false;
+      _emit();
+      await _player.play();
+
+      // Precargar la SIGUIENTE pista en background para skip cuasi-inmediato.
+      final nextIdx = _nextIndex();
+      if (nextIdx != null && nextIdx != _index) {
+        final next = _queue[nextIdx];
+        if (next.streamUrl == null ||
+            (next.streamUrl?.isEmpty ?? true)) {
+          if (!next.isDownloaded && next.localPath == null) {
+            MusicRepository.instance.prefetchNext(next.id);
+          }
+        }
+      }
     } catch (e, s) {
       HarmonixLogger.instance.error('Error cargando ${song.id}',
           tag: 'Audio', error: e, stack: s);
+      _resolving = false;
+      _emit();
     }
+  }
+
+  int? _nextIndex() {
+    if (_queue.isEmpty) return null;
+    if (_player.shuffleModeEnabled) {
+      return (_index + 1) % _queue.length;
+    }
+    final next = _index + 1;
+    if (next >= _queue.length) {
+      return _player.loopMode == LoopMode.all ? 0 : null;
+    }
+    return next;
   }
 
   Future<void> _handleEnd() async {
@@ -230,8 +324,7 @@ class HarmonixAudioHandler extends BaseAudioHandler
   Future<void> skipToIndex(int index) async {
     if (index < 0 || index >= _queue.length) return;
     _index = index;
-    await _loadCurrent();
-    await _player.play();
+    unawaited(_loadCurrent());
   }
 
   // ---- Controles BaseAudioHandler ----
@@ -252,22 +345,13 @@ class HarmonixAudioHandler extends BaseAudioHandler
 
   @override
   Future<void> skipToNext() async {
-    if (_queue.isEmpty) return;
-    if (_player.shuffleModeEnabled) {
-      _index = (_index + 1) % _queue.length;
-    } else {
-      _index = _index + 1;
-      if (_index >= _queue.length) {
-        if (_player.loopMode == LoopMode.all) {
-          _index = 0;
-        } else {
-          await _player.stop();
-          return;
-        }
-      }
+    final next = _nextIndex();
+    if (next == null) {
+      await _player.stop();
+      return;
     }
-    await _loadCurrent();
-    await _player.play();
+    _index = next;
+    unawaited(_loadCurrent());
   }
 
   @override
@@ -277,8 +361,7 @@ class HarmonixAudioHandler extends BaseAudioHandler
     if (_index < 0) {
       _index = _player.loopMode == LoopMode.all ? _queue.length - 1 : 0;
     }
-    await _loadCurrent();
-    await _player.play();
+    unawaited(_loadCurrent());
   }
 
   @override

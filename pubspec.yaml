@@ -24,6 +24,10 @@ dependencies:
   retrofit: ^4.1.0
   json_annotation: ^4.8.1
 
+  # YouTube stream extraction (Dart port of yt-dlp's YouTube logic).
+  # Sin dependencias nativas → funciona en Android sin bundle de Python.
+  youtube_explode_dart: ^2.3.6
+
   # Estado
   provider: ^6.1.2
 

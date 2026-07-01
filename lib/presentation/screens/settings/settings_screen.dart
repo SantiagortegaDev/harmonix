@@ -161,73 +161,49 @@ class _AccentColorSelector extends StatelessWidget {
   }
 }
 
-class _PipedInstanceTile extends StatefulWidget {
+class _PipedInstanceTile extends StatelessWidget {
   const _PipedInstanceTile();
-  @override
-  State<_PipedInstanceTile> createState() => _PipedInstanceTileState();
-}
-
-class _PipedInstanceTileState extends State<_PipedInstanceTile> {
-  late final TextEditingController _ctrl;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = TextEditingController(
-        text: SettingsService.instance.pipedInstance);
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: const Icon(Icons.dns_rounded, color: HarmonixColors.accent),
-      title: const Text('Instancia Piped'),
-      subtitle: Text(SettingsService.instance.pipedInstance),
+      leading: const Icon(Icons.bolt_rounded, color: HarmonixColors.accent),
+      title: const Text('Motor de audio'),
+      subtitle: const Text(AppConstants.audioEngineName),
       trailing: const Icon(Icons.chevron_right_rounded,
           color: HarmonixColors.textSecondary),
-      onTap: () => _showDialog(context),
+      onTap: () => _showInfo(context),
     );
   }
 
-  void _showDialog(BuildContext context) {
+  void _showInfo(BuildContext context) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Instancia Piped'),
-        content: Column(
+        title: const Text('Motor de audio'),
+        content: const Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextField(
-              controller: _ctrl,
-              decoration: const InputDecoration(
-                  hintText: 'https://piped.example.com',
-                  border: OutlineInputBorder()),
+            Text(
+              'Harmonix usa yt-dlp (vía youtube_explode_dart) para resolver '
+              'la URL directa de audio de YouTube en el dispositivo.',
+              style: TextStyle(fontSize: 13),
             ),
-            const SizedBox(height: 12),
-            const Text(
-              'Lista pública recomendada: pipedapi.kavin.rocks, '
-              'piped.tokhmi.xyz, piped.moomoo.me',
-              style: TextStyle(fontSize: 11, color: Colors.grey),
+            SizedBox(height: 12),
+            Text(
+              '• Sin instancias externas inestables\n'
+              '• URLs cacheadas 5 min en memoria\n'
+              '• Precarga de la siguiente pista\n'
+              '• Reproducción instantánea en replays',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
             ),
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
           FilledButton(
-            onPressed: () async {
-              await SettingsService.instance.setPipedInstance(_ctrl.text.trim());
-              if (context.mounted) Navigator.pop(context);
-            },
-            child: const Text('Guardar'),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Entendido'),
           ),
         ],
       ),

@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:harmonix/core/theme/colors.dart';
 import 'package:harmonix/data/models/song.dart';
+import 'package:harmonix/data/repositories/music_repository.dart';
 import 'package:harmonix/data/services/download_service.dart';
 import 'package:harmonix/presentation/providers/player_provider.dart';
 import 'package:harmonix/presentation/widgets/favorite_button.dart';
@@ -106,11 +107,24 @@ class _TopBar extends StatelessWidget {
               title: const Text('Descargar para offline'),
               onTap: () async {
                 final s = player.currentSong;
-                if (s == null || s.streamUrl == null) {
-                  Navigator.pop(context);
+                if (s == null) {
+                  if (context.mounted) Navigator.pop(context);
                   return;
                 }
-                await DownloadService.instance.download(s, s.streamUrl!);
+                // Resolver URL directa vía yt-dlp si no está cacheada.
+                String? url = s.streamUrl;
+                if (url == null || url.isEmpty) {
+                  try {
+                    url = await MusicRepository.instance.resolveDirectUrl(s.id);
+                  } catch (_) {
+                    url = null;
+                  }
+                }
+                if (url == null) {
+                  if (context.mounted) Navigator.pop(context);
+                  return;
+                }
+                await DownloadService.instance.download(s, url);
                 if (context.mounted) Navigator.pop(context);
               },
             ),

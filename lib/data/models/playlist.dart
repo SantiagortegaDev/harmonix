@@ -44,7 +44,7 @@ class Playlist extends HiveObject {
   @HiveField(8)
   final DateTime? createdAt;
 
-  factory Playlist.fromPipedSearchItem(Map<String, dynamic> json) {
+  factory Playlist.fromMap(Map<String, dynamic> json) {
     final url = json['url']?.toString() ?? '';
     final id = url.split('=').last;
     return Playlist(

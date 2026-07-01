@@ -1,14 +1,19 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:harmonix/data/models/song.dart';
 import 'package:harmonix/data/repositories/music_repository.dart';
 import 'package:harmonix/data/services/audio_player_service.dart';
-import 'package:harmonix/data/services/cache_service.dart';
 import 'package:harmonix/data/services/lyrics_service.dart';
 
 /// Provider principal del reproductor.
 ///
 /// Envuelve [HarmonixAudioHandler] exponiendo estado reactivo a la UI
 /// (canción actual, posición, cola, favorito, letra).
+///
+/// NOTA: la resolución de URL directa de YouTube (vía yt-dlp) se hace ahora
+/// on-demand dentro del [HarmonixAudioHandler] para que el playback arranque
+/// cuanto antes. Aquí solo orquestamos cola + letra + favoritos.
 class PlayerProvider extends ChangeNotifier {
   PlayerProvider(this._handler) {
     _handler.stateStream.listen(_onState);
@@ -22,11 +27,9 @@ class PlayerProvider extends ChangeNotifier {
 
   Song? get currentSong => _state.song;
   bool get isPlaying => _state.isPlaying;
+  bool get isResolving => _state.isResolving;
   Duration get position => _state.position;
   Duration get duration => _state.duration;
-
-  bool _showFullPlayer = false;
-  bool get showFullPlayer => _showFullPlayer;
 
   List<LyricLine> _lyrics = [];
   List<LyricLine> get lyrics => _lyrics;
@@ -36,6 +39,9 @@ class PlayerProvider extends ChangeNotifier {
 
   bool _translateLyrics = false;
   bool get translateLyrics => _translateLyrics;
+
+  bool _showFullPlayer = false;
+  bool get showFullPlayer => _showFullPlayer;
 
   int get currentLyricIndex {
     if (_lyrics.isEmpty) return -1;
@@ -51,37 +57,15 @@ class PlayerProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Carga la cola y arranca el playback SIN pre-resolver todas las URLs.
+  /// El handler resuelve la URL de la pista actual on-demand (1-2s) y
+  /// precarga la siguiente en background.
   Future<void> playQueue(List<Song> songs, {int initialIndex = 0}) async {
-    // Resolver streams de cada canción vía caché + Piped
-    final resolved = <Song>[];
-    for (final s in songs) {
-      resolved.add(await _resolve(s));
-    }
-    await _handler.playQueue(resolved, initialIndex: initialIndex);
-    await _loadLyrics(resolved[initialIndex.clamp(0, resolved.length - 1)]);
-    MusicRepository.instance.markPlayed(resolved[initialIndex.clamp(0, resolved.length - 1)]);
-  }
-
-  Future<Song> _resolve(Song song) async {
-    // Si está descargada → usar local
-    final repo = MusicRepository.instance;
-    final cachedPath = CacheService.instance.getCachedPath(song.id);
-    if (cachedPath != null) {
-      return song.copyWith(streamUrl: cachedPath);
-    }
-    if (song.streamUrl == null || song.streamUrl!.isEmpty) {
-      try {
-        final resolved = await repo.fetchStreams(song.id);
-        // Cachear en disco (async, no bloquea playback)
-        if (resolved.streamUrl != null) {
-          CacheService.instance.cacheStream(resolved, resolved.streamUrl!);
-        }
-        return resolved;
-      } catch (_) {
-        return song;
-      }
-    }
-    return song;
+    if (songs.isEmpty) return;
+    await _handler.playQueue(songs, initialIndex: initialIndex);
+    final initial = songs[initialIndex.clamp(0, songs.length - 1)];
+    unawaited(_loadLyrics(initial));
+    unawaited(MusicRepository.instance.markPlayed(initial));
   }
 
   Future<void> _loadLyrics(Song song) async {

@@ -14,7 +14,6 @@ class SettingsService extends ChangeNotifier {
   late Box _box;
 
   // Claves
-  static const _kPipedInstance = 'piped_instance';
   static const _kAccentSeed = 'accent_seed';
   static const _kCacheLimit = 'cache_limit_mb';
   static const _kLanguage = 'language';
@@ -34,9 +33,6 @@ class SettingsService extends ChangeNotifier {
   }
 
   // --- Getters ---
-  String get pipedInstance =>
-      _box.get(_kPipedInstance, defaultValue: AppConstants.defaultPipedInstance) as String;
-
   Color get accentSeed {
     final idx = _box.get(_kAccentSeed, defaultValue: 0) as int;
     return HarmonixColors.accentSeeds[idx.clamp(0, HarmonixColors.accentSeeds.length - 1)];
@@ -81,11 +77,6 @@ class SettingsService extends ChangeNotifier {
       _box.get(_kDebugMode, defaultValue: false) as bool;
 
   // --- Setters ---
-  Future<void> setPipedInstance(String v) async {
-    await _box.put(_kPipedInstance, v);
-    notifyListeners();
-  }
-
   Future<void> setAccentSeedIndex(int v) async {
     await _box.put(_kAccentSeed, v);
     notifyListeners();

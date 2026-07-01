@@ -1,24 +1,25 @@
 import 'package:harmonix/core/utils/logger.dart';
 import 'package:harmonix/data/models/song.dart';
-import 'package:harmonix/data/services/piped_api_service.dart';
+import 'package:harmonix/data/services/ytdlp_service.dart';
 import 'package:hive/hive.dart';
 import 'package:harmonix/core/constants/app_constants.dart';
 
 /// Repositorio central de música.
 ///
-/// Combina el servicio Piped con persistencia local (recientes, favoritos,
-/// playlists del usuario) para que la UI trabaje contra una sola API.
+/// Combina el servicio YtDlp (extracción directa de YouTube, equivalente a
+/// yt-dlp) con persistencia local (recientes, favoritos, playlists del
+/// usuario) para que la UI trabaje contra una sola API.
 class MusicRepository {
   MusicRepository._();
   static final MusicRepository instance = MusicRepository._();
 
-  PipedApiService _api = PipedApiService();
+  YtDlpService _api = YtDlpService.instance;
   late Box<Song> _songsBox;
   late Box<Song> _favoritesBox;
   late Box<Song> _recentsBox;
   late Box<dynamic> _playlistsBox;
 
-  PipedApiService get api => _api;
+  YtDlpService get api => _api;
 
   Future<void> init() async {
     _songsBox = await Hive.openBox<Song>(AppConstants.boxSongs);
@@ -28,25 +29,37 @@ class MusicRepository {
     HarmonixLogger.instance.info('MusicRepository init', tag: 'Repository');
   }
 
-  void setPipedInstance(String instanceUrl) {
-    _api = PipedApiService(instanceUrl: instanceUrl);
-    HarmonixLogger.instance.info('Piped instance: $instanceUrl', tag: 'Repository');
+  /// Ya no hay instancia externa que configurar: el motor yt-dlp funciona
+  /// sin configuración. Se mantiene por compatibilidad con SettingsProvider.
+  void setAudioEngine(String _) {
+    HarmonixLogger.instance.info('Audio engine: ${AppConstants.audioEngineName}',
+        tag: 'Repository');
   }
 
   // --- Búsqueda ---
-  Future<PipedSearchResult> search(String q,
-          {PipedSearchFilter filter = PipedSearchFilter.musicSongs}) =>
+  Future<YtDlpSearchResult> search(String q,
+          {YtDlpSearchFilter filter = YtDlpSearchFilter.songs}) =>
       _api.search(q, filter: filter);
 
   Future<List<String>> suggestions(String q) => _api.suggestions(q);
 
   Future<List<Song>> trending() => _api.trending();
 
-  Future<Song> fetchStreams(String videoId) async {
-    final song = await _api.fetchStreams(videoId);
+  /// Resuelve metadatos (título/duración/thumbnail) sin URL directa.
+  /// La URL directa se resuelve on-demand desde el audio handler para
+  /// no bloquear el inicio del playback.
+  Future<Song> fetchMetadata(String videoId) async {
+    final song = await _api.fetchMetadata(videoId);
     await _songsBox.put(song.id, song);
     return song;
   }
+
+  /// Resuelve la URL directa de audio para [videoId]. Cacheada en memoria.
+  Future<String> resolveDirectUrl(String videoId) =>
+      _api.getDirectAudioUrl(videoId);
+
+  /// Precarga la URL de la siguiente pista (background).
+  void prefetchNext(String videoId) => _api.prefetchNext(videoId);
 
   // --- Recientes ---
   List<Song> get recents => _recentsBox.values.toList()

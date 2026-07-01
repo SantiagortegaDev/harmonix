@@ -4,7 +4,7 @@ import 'package:harmonix/core/utils/logger.dart';
 import 'package:harmonix/data/models/artist.dart';
 import 'package:harmonix/data/models/song.dart';
 import 'package:harmonix/data/repositories/music_repository.dart';
-import 'package:harmonix/data/services/piped_api_service.dart';
+import 'package:harmonix/data/services/ytdlp_service.dart';
 import 'package:harmonix/presentation/providers/player_provider.dart';
 import 'package:harmonix/presentation/screens/search/search_screen.dart';
 import 'package:harmonix/presentation/screens/settings/settings_screen.dart';
@@ -53,7 +53,7 @@ class _HomeScreenState extends State<HomeScreen> {
       HarmonixLogger.instance.error('Home load failed',
           tag: 'Home', error: e, stack: s);
       setState(() {
-        _error = 'No se pudo cargar el contenido. Revisa la instancia Piped en Ajustes.';
+        _error = 'No se pudo cargar el contenido. Verifica tu conexión a internet.';
         _loading = false;
       });
     }
@@ -392,7 +392,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _searchAndPlay(String category) async {
     final res = await MusicRepository.instance.search('$category music mix',
-        filter: PipedSearchFilter.musicSongs);
+        filter: YtDlpSearchFilter.songs);
     if (res.songs.isEmpty) return;
     if (!mounted) return;
     final player = context.read<PlayerProvider>();
