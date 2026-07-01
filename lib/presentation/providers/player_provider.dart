@@ -5,6 +5,8 @@ import 'package:harmonix/data/models/song.dart';
 import 'package:harmonix/data/repositories/music_repository.dart';
 import 'package:harmonix/data/services/audio_player_service.dart';
 import 'package:harmonix/data/services/lyrics_service.dart';
+import 'package:audio_service/audio_service.dart' show AudioServiceShuffleMode;
+import 'package:just_audio/just_audio.dart' show LoopMode;
 
 /// Provider principal del reproductor.
 ///
@@ -115,7 +117,11 @@ class PlayerProvider extends ChangeNotifier {
   Future<void> setVolume(double v) => _handler.setVolume(v);
 
   Future<void> toggleShuffle() =>
-      _handler.setShuffleMode(!_state.shuffleMode);
+      _handler.setShuffleMode(
+        !_state.shuffleMode
+            ? AudioServiceShuffleMode.enabled
+            : AudioServiceShuffleMode.disabled,
+      );
 
   Future<void> cycleLoop() async {
     final next = _state.loopMode == LoopMode.off

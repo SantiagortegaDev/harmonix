@@ -41,9 +41,9 @@ class _FilesScreenState extends State<FilesScreen> {
     }
     setState(() {
       _root = base;
-      _currentPath = base.path;
+      _currentPath = base?.path ?? '';
     });
-    await _loadDir(base.path);
+    await _loadDir(base?.path ?? '');
   }
 
   Future<void> _loadDir(String path) async {

@@ -80,7 +80,6 @@ class HarmonixLogEntry {
     this.tag,
     this.error,
     this.stack,
-    required this.timestamp,
   }) : timestamp = DateTime.now();
 
   final Level level;

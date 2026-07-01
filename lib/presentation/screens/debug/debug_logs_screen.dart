@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:harmonix/core/theme/colors.dart';
 import 'package:harmonix/core/utils/logger.dart';
+import 'package:logger/logger.dart' show Level;
 
 /// Pantalla de logs en tiempo real (modo desarrollador).
 ///

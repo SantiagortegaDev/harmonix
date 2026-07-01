@@ -7,6 +7,7 @@ import 'package:harmonix/data/services/download_service.dart';
 import 'package:harmonix/presentation/providers/player_provider.dart';
 import 'package:harmonix/presentation/widgets/favorite_button.dart';
 import 'package:harmonix/presentation/widgets/wavy_slider.dart';
+import 'package:just_audio/just_audio.dart' show LoopMode;
 import 'package:provider/provider.dart';
 
 /// Reproductor a pantalla completa con wavy slider, portada, letras

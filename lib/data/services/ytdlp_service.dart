@@ -7,7 +7,7 @@ import 'package:harmonix/data/models/album.dart';
 import 'package:harmonix/data/models/artist.dart';
 import 'package:harmonix/data/models/playlist.dart';
 import 'package:harmonix/data/models/song.dart';
-import 'package:youtube_explode_dart/youtube_explode_dart.dart';
+import 'package:youtube_explode_dart/youtube_explode_dart.dart' hide Playlist;
 
 /// Resultado de búsqueda unificado (reemplaza al antiguo PipedSearchResult).
 class YtDlpSearchResult {
@@ -71,9 +71,10 @@ class YtDlpService {
     HarmonixLogger.instance.debug('search "$query" filter=$filter',
         tag: 'YtDlp');
     try {
+      final filterArg = _mapFilter(filter);
       final results = await _yt.search.search(
         query,
-        filter: _mapFilter(filter),
+        filter: filterArg,
       );
       final songs = <Song>[];
       final artists = <Artist>[];
@@ -173,13 +174,16 @@ class YtDlpService {
   /// Detalle de una playlist pública de YouTube.
   Future<Playlist> fetchPlaylist(String playlistId) async {
     final pl = await _yt.playlists.get(playlistId);
-    final videos = await _yt.playlists.getVideos(playlistId);
-    final songs = videos.map(_songFromVideo).toList();
+    final videos = _yt.playlists.getVideos(playlistId);
+    final songs = <Song>[];
+    await for (final v in videos) {
+      songs.add(_songFromVideo(v));
+    }
     return Playlist(
       id: pl.id.value,
       name: pl.title,
       thumbnailUrl: pl.thumbnails.highResUrl,
-      uploader: pl.author?.name ?? '',
+      uploader: pl.author ?? '',
       videoCount: songs.length,
       songs: songs,
     );
@@ -203,7 +207,7 @@ class YtDlpService {
       id: ch.id.value,
       name: ch.title,
       thumbnailUrl: ch.logoUrl,
-      description: ch.description,
+      description: '',
       subscribers: ch.subscribersCount,
       verified: false,
     );
@@ -279,20 +283,19 @@ class YtDlpService {
     }
   }
 
-  SearchFilter _mapFilter(YtDlpSearchFilter f) {
+  SearchFilter? _mapFilter(YtDlpSearchFilter f) {
     switch (f) {
       case YtDlpSearchFilter.songs:
-        return SearchFilter.songs;
       case YtDlpSearchFilter.videos:
-        return SearchFilter.videos;
+        return SearchFilter.video;
       case YtDlpSearchFilter.albums:
-        return SearchFilter.albums;
+        return SearchFilter.video;
       case YtDlpSearchFilter.playlists:
-        return SearchFilter.playlists;
+        return SearchFilter.playlist;
       case YtDlpSearchFilter.artists:
-        return SearchFilter.artists;
+        return SearchFilter.channel;
       case YtDlpSearchFilter.all:
-        return SearchFilter.songs;
+        return null;
     }
   }
 
