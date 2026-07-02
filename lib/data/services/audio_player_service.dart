@@ -105,7 +105,7 @@ class HarmonixAudioHandler extends BaseAudioHandler
 
   /// Constructor fallback para cuando AudioService.init falla.
   /// Crea el player sin registro en audio_service.
-  HarmonixAudioHandler._fallback() {
+  HarmonixAudioHandler.fallback() {
     _player = AudioPlayer();
     _listenPlayer();
   }

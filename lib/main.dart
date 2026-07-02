@@ -113,7 +113,7 @@ class HarmonixApp extends StatelessWidget {
   Widget build(BuildContext context) {
     // Si audioService falló, crear un handler dummy para que PlayerProvider
     // no crashee por null.
-    final handler = harmonixAudioHandler ?? HarmonixAudioHandler._fallback();
+    final handler = harmonixAudioHandler ?? HarmonixAudioHandler.fallback();
 
     return MultiProvider(
       providers: [
